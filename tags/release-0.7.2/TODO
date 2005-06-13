@@ -1,0 +1,15 @@
+ ? handle error when overwriting a file
+ 
+ * use a raw quality setting
+ * display aprox. bitrate
+ * choose dir, add recursively input files that need to be converted
+ * give time estimates for progress bar
+ * HIG compliant interface
+ * progress dialog
+ * autotools, l12n
+ * handle exceptions even when they happen in callbacks
+ * add support for GNOME encoding profiles
+
+ * bug: the program's options aren't printed with --help
+
+ -ok- bug: the dialog can only be showed once
