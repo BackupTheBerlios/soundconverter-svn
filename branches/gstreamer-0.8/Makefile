@@ -16,6 +16,7 @@ DEST=$(PACKAGE)-$(VERSION)
 prefix = /usr/local
 bindir = $(prefix)/bin
 sharedir = $(prefix)/share/soundconverter
+localedir = $(prefix)/share/locale
 
 POT_FILE=po/soundconverter.pot
 
@@ -45,9 +46,12 @@ install:
 	install -d $(DESTDIR)$(bindir) $(DESTDIR)$(sharedir)
 	install -m 0644 soundconverter.glade $(DESTDIR)$(sharedir)
 	install -m 0644 logo.png $(DESTDIR)$(sharedir)
-	install -m 0644 po/fr.mo /usr/share/locale/fr/LC_MESSAGES/soundconverter.mo
-	install -m 0644 po/pl.mo /usr/share/locale/fr/LC_MESSAGES/soundconverter.mo
-	install -m 0644 po/pt_BR.mo /usr/share/locale/fr/LC_MESSAGES/soundconverter.mo
+	for x in $$(cd po; ls *.mo); do \
+	    lang=$$(basename $$x .mo); \
+	    dir=$(localedir)/$$lang/LC_MESSAGES; \
+	    install -d $$dir; \
+	    install -m 0644 po/$$x $$dir/soundconverter.mo; \
+	    done
 	sed 's,^GLADE *=.*,GLADE = "$(sharedir)/soundconverter.glade",' \
 	soundconverter.py > make-install-temp
 	install make-install-temp $(DESTDIR)$(bindir)/soundconverter

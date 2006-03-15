@@ -1,3 +1,9 @@
+2006-03-15  Gautier Portet <kassoulet gmail com>
+
+	* Makefile: Applied Makefile cleanup patch from Lars.
+	* soundconverter.glade: Removed preferences and exit toolbar buttons
+	  as requested (#6777).
+
 2006-01-21  Gautier Portet <kassoulet gmail com>
 
 	Release 0.8.3
