@@ -1,3 +1,7 @@
+2006-03-19  Gautier Portet <kassoulet gmail com>
+
+	* soundconverter.py: File permission are copied from source files now.
+
 2006-03-15  Gautier Portet <kassoulet gmail com>
 
 	* Makefile: Applied Makefile cleanup patch from Lars.

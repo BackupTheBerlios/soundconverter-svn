@@ -706,6 +706,16 @@ class Converter(Decoder):
 			"audio/mpeg": self.add_mp3_encoder,
 		}
 
+	def finish(self):
+		Pipeline.finish(self)
+		
+		# Copy file permission
+		try:
+			info = gnomevfs.get_file_info( self.sound_file.get_uri(),gnomevfs.FILE_INFO_FIELDS_PERMISSIONS)
+			gnomevfs.set_file_info(self.output_filename, info, gnomevfs.SET_FILE_INFO_PERMISSIONS)
+		except:
+			log(_("Cannot set permission on '%s'") % gnomevfs.format_uri_for_display(self.output_filename))
+
 	def new_decoded_pad(self, decoder, pad, is_last):
 		if self.added_pad_already:
 			return
