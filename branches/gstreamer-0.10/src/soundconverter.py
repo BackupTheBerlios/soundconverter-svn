@@ -421,7 +421,6 @@ class BackgroundTask:
 	def do_work(self):
 		"""Do some work by calling work(). Call finish() if work is done."""
 		try:
-			print "work:",self 
 			if self.paused:
 				if not self.current_paused_time:
 					self.current_paused_time = time.time()
@@ -562,6 +561,7 @@ class Pipeline(BackgroundTask):
 		self.parsed = False
 		self.signals = []
 		self.processing = False
+		self.eos = False
 		
 	def setup(self):
 		self.play()
@@ -570,7 +570,9 @@ class Pipeline(BackgroundTask):
 		if self.pipeline.get_state() == gst.STATE_NULL:
 			print "error: pipeline.state == null"
 			#return False
-		time.sleep(0.1)
+		time.sleep(1)
+		if self.eos:
+			return False
 		return True
 		#return self.pipeline.iterate()
 
@@ -591,6 +593,27 @@ class Pipeline(BackgroundTask):
 		else:
 			self.pipeline.set_state(gst.STATE_PLAYING)
 
+	def on_message(self, bus, message):
+		t = message.type
+		#print message
+		if t == gst.MESSAGE_STATE_CHANGED:
+			pass
+		elif t == gst.MESSAGE_ERROR:
+			err, debug = message.parse_error()
+			print "error:", err, debug
+		elif t == gst.MESSAGE_EOS:
+			self.eos = True
+		else:
+			print 'msg: %s: %s:' % (message.src.get_path_string(),
+							   message.type.value_nicks[1])
+		#if message.structure:
+		#	print '    %s' % message.structure.to_string()
+		#else:
+		#	print '    (no structure)'
+		return True
+
+		
+
 	def play(self):
 		if not self.parsed:
 			print "launching: '%s'" % self.command
@@ -600,7 +623,13 @@ class Pipeline(BackgroundTask):
 			self.parsed = True
 		else:
 			print "ERROR: ALREADY PARSED!!!"
-		
+	
+		bus = self.pipeline.get_bus()
+		bus.add_signal_watch()
+		watch_id = bus.connect('message', self.on_message)
+		self.watch_id = watch_id
+
+	
 		self.pipeline.set_state(gst.STATE_PLAYING)
 
 	def stop_pipeline(self):
@@ -613,8 +642,8 @@ class Pipeline(BackgroundTask):
 	#	return element.query(gst.QUERY_POSITION, gst.FORMAT_PERCENT) 
 
 	def get_bytes_progress(self):
-		if not self.processing:
-			return 0
+		#if not self.processing:
+		#	return 0
 		element = self.pipeline.get_by_name("src")
 		return element.query_position(gst.FORMAT_BYTES)[0]
 
@@ -796,6 +825,18 @@ class Converter(Decoder):
 	
 		self.add_command('gnomevfssink location=%s' % uri)
 		log( _("Writing to: '%s'") % urllib.unquote(self.output_filename) )
+
+	def finish(self):
+		Pipeline.finish(self)
+		
+		# Copy file permissions
+		try:
+			info = gnomevfs.get_file_info( self.sound_file.get_uri(),gnomevfs.FILE_INFO_FIELDS_PERMISSIONS)
+			gnomevfs.set_file_info(self.output_filename, info, gnomevfs.SET_FILE_INFO_PERMISSIONS)
+		except:
+			log(_("Cannot set permission on '%s'") % gnomevfs.format_uri_for_display(self.output_filename))
+
+
 	
 	def new_decoded_pad(self, decoder, pad, is_last):
 		if self.added_pad_already:
@@ -892,6 +933,7 @@ class FileList:
 										markup=ALL_COLUMNS.index(name))
 			self.widget.append_column(column)
 	
+
 	def drag_data_received(self, widget, context, x, y, selection, 
 						   mime_id, time):
 
