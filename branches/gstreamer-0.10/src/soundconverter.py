@@ -243,7 +243,8 @@ class SoundFile:
 		}
 		self.have_tags = False
 		self.tags_read = False
-		  
+		self.duration = 0	
+	  
 	def get_uri(self):
 		return self.uri
 		
@@ -570,7 +571,7 @@ class Pipeline(BackgroundTask):
 		if self.pipeline.get_state() == gst.STATE_NULL:
 			print "error: pipeline.state == null"
 			#return False
-		time.sleep(1)
+		time.sleep(0.1)
 		if self.eos:
 			return False
 		return True
@@ -593,6 +594,9 @@ class Pipeline(BackgroundTask):
 		else:
 			self.pipeline.set_state(gst.STATE_PLAYING)
 
+	def found_tag(self, decoder, something, taglist):
+		pass
+
 	def on_message(self, bus, message):
 		t = message.type
 		#print message
@@ -608,6 +612,9 @@ class Pipeline(BackgroundTask):
 							   message.type.value_nicks[1])
 		#if message.structure:
 		#	print '    %s' % message.structure.to_string()
+		if message.type.value_nicks[1] == "tag":
+			print "   ", dir(message.parse_tag())
+			self.found_tag(self, "", message.parse_tag())	
 		#else:
 		#	print '    (no structure)'
 		return True
@@ -642,10 +649,7 @@ class Pipeline(BackgroundTask):
 	#	return element.query(gst.QUERY_POSITION, gst.FORMAT_PERCENT) 
 
 	def get_bytes_progress(self):
-		#if not self.processing:
-		#	return 0
-		element = self.pipeline.get_by_name("src")
-		return element.query_position(gst.FORMAT_BYTES)[0]
+		return self.pipeline.query_position(gst.FORMAT_TIME)[0] 
 
 class TypeFinder(Pipeline):
 	def __init__(self, sound_file):
@@ -653,7 +657,7 @@ class TypeFinder(Pipeline):
 		self.sound_file = sound_file
 		self.found_type = ""
 	
-		command = 'gnomevfssrc location="%s" ! typefind name=typefinder' % \
+		command = 'gnomevfssrc location="%s" ! typefind name=typefinder ! fakesink' % \
 			self.sound_file.get_uri()
 		self.add_command(command)
 		self.add_signal("typefinder", "have-type", self.have_type)
@@ -663,6 +667,7 @@ class TypeFinder(Pipeline):
 	
 	def have_type(self, typefind, probability, caps):
 		mime_type = caps.to_string()
+		print "found-type:", mime_type
 		self.found_type = None
 		for t in mime_whitelist:
 			if t in mime_type:
@@ -715,13 +720,15 @@ class Decoder(Pipeline):
 		# gst.QUERY_SIZE doesn't work reliably until we have ran the
 		# pipeline for a while. Thus we look at the size in a different
 		# way.
-		uri = self.get_input_uri()
-		try:
-			info = gnomevfs.get_file_info(uri)
-			return info.size
-		except gnomevfs.NotFoundError:
-			print "notfound:", uri
-			return 0
+		return self.sound_file.duration
+
+		#uri = self.get_input_uri()
+		#try:
+		#	info = gnomevfs.get_file_info(uri)
+		#	return info.size
+		#except gnomevfs.NotFoundError:
+		#	print "notfound:", uri
+		#	return 0
 
 class TagReader(Decoder):
 
@@ -732,6 +739,7 @@ class TagReader(Decoder):
 		self.found_tag_hook = None
 		self.found_tags = False
 		self.run_start_time = time.time()
+		self.add_command("fakesink")
 
 	def set_found_tag_hook(self, found_tag_hook):
 		self.found_tag_hook = found_tag_hook
@@ -744,9 +752,11 @@ class TagReader(Decoder):
 		# tags from ogg vorbis files comes with two callbacks,
 		# the first callback containing just the stream serial number.
 		# The second callback contains the tags we're interested in.
-		if taglist.has_key('serial'):
+		if "serial" in taglist.keys():
 			return
 
+		print "TAG progress: %s/%s" % ( self.pipeline.query_position(gst.FORMAT_TIME)[0], self.pipeline.query_duration(gst.FORMAT_TIME)[0])
+		self.sound_file.duration = self.pipeline.query_duration(gst.FORMAT_TIME)[0]
 		self.found_tags = True
 		self.sound_file.have_tags = True
 
@@ -966,6 +976,7 @@ class FileList:
 	
 	def found_type(self, sound_file, mime):
 
+		print "found_type"
 		self.append_file(sound_file)
 		self.window.set_sensitive()
 
@@ -1042,7 +1053,7 @@ class FileList:
 	def append_file_tags(self, tagreader):
 		sound_file = tagreader.get_sound_file()
 
-
+		
 		fields = {}
 		for key in ALL_COLUMNS:
 			fields[key] = _("unknown")
