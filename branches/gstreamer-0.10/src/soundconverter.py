@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: latin-1 -*-
+# -*- coding: utf-8 -*-
 #
 # SoundConverter - GNOME application for converting between audio formats. 
 # Copyright 2004 Lars Wirzenius
@@ -128,6 +128,9 @@ def vfs_walk(uri):
 	if str(uri)[-1] != '/':
 		uri = uri.append_string("/")
 
+	f = file("walk","a+")
+	f.write("%s\n" % uri)
+
 	info = gnomevfs.get_file_info(uri, gnomevfs.FILE_INFO_GET_MIME_TYPE)
 	filelist = []	
 
@@ -141,6 +144,8 @@ def vfs_walk(uri):
 	for file_info in dirlist:
 		if file_info.name[0] == ".":
 			continue
+
+		f.write("  %s\n" % file_info.name)
 	
 		if file_info.type == gnomevfs.FILE_TYPE_DIRECTORY:
 			filelist.extend(
@@ -418,10 +423,13 @@ class BackgroundTask:
 		self.current_paused_time = 0
 		self.paused_time = 0
 		self.id = gobject.idle_add(self.do_work, priority=gobject.PRIORITY_LOW)
+		#self.id = gobject.timeout_add(10, self.do_work, priority=gobject.PRIORITY_LOW)
 	
 	def do_work(self):
 		"""Do some work by calling work(). Call finish() if work is done."""
 		try:
+			print "do_work:", self
+			#time.sleep(0.01)
 			if self.paused:
 				if not self.current_paused_time:
 					self.current_paused_time = time.time()
@@ -571,7 +579,8 @@ class Pipeline(BackgroundTask):
 		if self.pipeline.get_state() == gst.STATE_NULL:
 			print "error: pipeline.state == null"
 			#return False
-		time.sleep(0.1)
+		print "work:", self
+		#time.sleep(0.01)
 		if self.eos:
 			return False
 		return True
@@ -607,13 +616,13 @@ class Pipeline(BackgroundTask):
 			print "error:", err, debug
 		elif t == gst.MESSAGE_EOS:
 			self.eos = True
-		else:
-			print 'msg: %s: %s:' % (message.src.get_path_string(),
-							   message.type.value_nicks[1])
+		#else:
+		#	print 'msg: %s: %s:' % (message.src.get_path_string(),
+		#					   message.type.value_nicks[1])
 		#if message.structure:
 		#	print '    %s' % message.structure.to_string()
 		if message.type.value_nicks[1] == "tag":
-			print "   ", dir(message.parse_tag())
+			#print "   ", dir(message.parse_tag())
 			self.found_tag(self, "", message.parse_tag())	
 		#else:
 		#	print '    (no structure)'
@@ -623,7 +632,7 @@ class Pipeline(BackgroundTask):
 
 	def play(self):
 		if not self.parsed:
-			print "launching: '%s'" % self.command
+			#print "launching: '%s'" % self.command
 			self.pipeline = gst.parse_launch(self.command)
 			for name, signal, callback in self.signals:
 				self.pipeline.get_by_name(name).connect(signal,callback)
@@ -662,12 +671,15 @@ class TypeFinder(Pipeline):
 		self.add_command(command)
 		self.add_signal("typefinder", "have-type", self.have_type)
 
+		#print " m.", self.sound_file.get_filename()
+
 	def set_found_type_hook(self, found_type_hook):
 		self.found_type_hook = found_type_hook
 	
 	def have_type(self, typefind, probability, caps):
+		#print " m+", self.sound_file.get_filename()
 		mime_type = caps.to_string()
-		print "found-type:", mime_type
+		#print "found-type:", mime_type
 		self.found_type = None
 		for t in mime_whitelist:
 			if t in mime_type:
@@ -755,8 +767,11 @@ class TagReader(Decoder):
 		if "serial" in taglist.keys():
 			return
 
-		print "TAG progress: %s/%s" % ( self.pipeline.query_position(gst.FORMAT_TIME)[0], self.pipeline.query_duration(gst.FORMAT_TIME)[0])
-		self.sound_file.duration = self.pipeline.query_duration(gst.FORMAT_TIME)[0]
+		try:
+			#TODO
+			self.sound_file.duration = self.pipeline.query_duration(gst.FORMAT_TIME)[0]
+		except:
+			pass
 		self.found_tags = True
 		self.sound_file.have_tags = True
 
@@ -915,6 +930,10 @@ class FileList:
 		self.tagreaders  = TaskQueue()
 		self.typefinders = TaskQueue()
 		
+		self.tc = 0
+		self.fc = 0
+		self.ic = 0
+		
 		self.filelist={}
 		
 		args = []
@@ -976,7 +995,8 @@ class FileList:
 	
 	def found_type(self, sound_file, mime):
 
-		print "found_type"
+		print " m ", sound_file.get_filename()
+
 		self.append_file(sound_file)
 		self.window.set_sensitive()
 
@@ -987,19 +1007,21 @@ class FileList:
 		if not self.tagreaders.is_running():
 			self.tagreaders.run()
 	
-	def add_file(self, sound_file):
+	def add_files(self, sound_files):
 
-		if sound_file.get_uri() in self.filelist:
-			log("file already present: '%s'" % sound_file.get_uri())
-			return 
-
-		self.filelist[sound_file.get_uri()] = True
-		typefinder = TypeFinder(sound_file)
-		typefinder.set_found_type_hook(self.found_type)
-		self.typefinders.add(typefinder)
+		print "*** adding %s files" % len(sound_files)
+		for sound_file in sound_files:
+			if sound_file.get_uri() in self.filelist:
+				log(_("file already present: '%s'") % sound_file.get_uri())
+				return 
+			#print "+ ", sound_file.get_filename()
+			self.filelist[sound_file.get_uri()] = True
+			typefinder = TypeFinder(sound_file)
+			typefinder.set_found_type_hook(self.found_type)
+			self.typefinders.add(typefinder)
 		if not self.typefinders.is_running():
 			self.typefinders.run()
-			
+	
 	def add_folder(self, folder):
 
 		base = folder
@@ -1048,11 +1070,13 @@ class FileList:
 		sound_file.model = iter
 		self.model.set(iter, 0, self.format_cell(sound_file))
 		self.model.set(iter, 1, sound_file)
-	
+		self.fc += 1
 	
 	def append_file_tags(self, tagreader):
 		sound_file = tagreader.get_sound_file()
 
+		self.tc += 1
+		print "  t %3d/%3d %s" % ( self.tc, self.fc, sound_file.get_filename())
 		
 		fields = {}
 		for key in ALL_COLUMNS:
@@ -1812,8 +1836,10 @@ class SoundConverterWindow:
 		ret = self.addchooser.run()
 		self.addchooser.hide()
 		if ret == gtk.RESPONSE_OK:
+			files = []
 			for uri in self.addchooser.get_uris():
-				self.filelist.add_file(SoundFile(uri))
+				files.append(SoundFile(uri))
+			self.filelist.add_files(files)
 		self.set_sensitive()
 
 
@@ -1825,11 +1851,14 @@ class SoundConverterWindow:
 			
 			base,notused = os.path.split(os.path.commonprefix(folders))
 			filelist = []
+			files = []
 			for folder in folders:
 				filelist.extend(vfs_walk(gnomevfs.URI(folder)))
 			for f in filelist:
+				file("files","a+").write("%s\n" % f)
 				f = f[len(base)+1:]
-				self.filelist.add_file(SoundFile(base+"/", f))
+				files.append(SoundFile(base+"/", f))
+			self.filelist.add_files(files)
 		self.set_sensitive()
 
 	def on_remove_activate(self, *args):
