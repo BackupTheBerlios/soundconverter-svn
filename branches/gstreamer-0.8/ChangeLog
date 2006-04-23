@@ -1,3 +1,7 @@
+2006-04-22  Gautier Portet <kassoulet gmail com>
+
+	* soundconverter.py: Fix an uncatched InvalidURIError when adding files.
+
 2006-03-19  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: File permission are copied from source files now.

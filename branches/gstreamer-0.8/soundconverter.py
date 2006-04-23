@@ -1467,6 +1467,9 @@ class ConverterQueue(TaskQueue):
 			gnomevfs.get_file_info(gnomevfs.URI(output_filename))
 		except gnomevfs.NotFoundError:
 			exists = False
+		except gnomevfs.InvalidURIError:
+			print "Invalid URI: '%s'" % output_filename
+			return
 				
 		if exists:
 
