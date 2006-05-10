@@ -20,7 +20,7 @@
 # USA
 
 NAME = "SoundConverter"
-VERSION = "0.8.3"
+VERSION = "0.8.4"
 GLADE = "soundconverter.glade"
 
 # Python standard stuff.
@@ -101,8 +101,8 @@ def vfs_walk(uri):
 	if str(uri)[-1] != '/':
 		uri = uri.append_string("/")
 
-	info = gnomevfs.get_file_info(uri, gnomevfs.FILE_INFO_GET_MIME_TYPE)
-	#info = gnomevfs.get_file_info(uri, gnomevfs.FILE_INFO_FIELDS_TYPE)
+	#info = gnomevfs.get_file_info(uri, gnomevfs.FILE_INFO_GET_MIME_TYPE)
+	info = gnomevfs.get_file_info(uri, gnomevfs.FILE_INFO_FIELDS_TYPE)
 	filelist = []	
 
 	try:
@@ -164,7 +164,6 @@ def sleep(duration):
 
 
 def UNUSED_display_from_mime(mime):
-	# TODO
 	mime_dict = {
 		"application/ogg": "Ogg Vorbis",
 		"audio/x-wav": "MS WAV",
@@ -202,12 +201,7 @@ class SoundFile:
 			self.base_path, self.filename = os.path.split(self.uri)
 			self.base_path += "/"
 			
-		self.tags = {
-			"track-number": 0,
-			"title":  "Unknown Title",
-			"artist": "Unknown Artist",
-			"album":  "Unknown Album",
-		}
+		self.tags = {}
 		self.have_tags = False
 		self.tags_read = False
 		
@@ -258,7 +252,7 @@ class TargetNameGenerator:
 		self.suffix = None
 		self.replace_messy_chars = False
 		self.max_tries = 2
-		self.exists = os.path.exists
+		self.exists = gnomevfs.exists
 
 	# This is useful for unit testing.		  
 	def set_exists(self, exists):
@@ -281,23 +275,17 @@ class TargetNameGenerator:
 		
 	def get_target_name(self, sound_file):
 
-		u = gnomevfs.URI(sound_file.get_uri())
-		root, ext = os.path.splitext(u.path)
-		if u.host_port:
-			host = "%s:%s" % (u.host_name, u.host_port)
-		else:
-			host = u.host_name
-
 		root = urlparse.urlsplit(sound_file.get_base_path())[2]
 		basename, ext = os.path.splitext(sound_file.get_filename())
 		
 		dict = {
 			".inputname": basename,
-			"album": "",
-			"artist": "",
-			"title": "",
+			"album": "Unknow Album",
+			"artist": "Unknow Artist",
+			"title": "Unknow Title",
 			"track-number": 0,
 		}
+
 		for key in sound_file.keys():
 			dict[key] = sound_file[key]
 		
@@ -315,14 +303,12 @@ class TargetNameGenerator:
 
 		if self.folder is None:
 			folder = root
+			stop_here = True
 		else:
 			folder = self.folder
 		result = os.path.join(folder, result)
 
-		tuple = (u.scheme, host, result, "", u.fragment_identifier)
-		u2 = urlparse.urlunsplit(tuple)
-		if self.exists(u2):
-			raise TargetNameCreationFailure(u2)
+		u2 = result
 		return u2
 
 
@@ -661,12 +647,15 @@ class TagReader(Decoder):
 		if taglist.has_key('serial'):
 			return
 
+		wanted_tags = ("title", "artist", "album")
+		for tag in taglist.keys():
+			if tag in wanted_tags:
+				self.sound_file.have_tags = True
 		self.found_tags = True
-		self.sound_file.have_tags = True
 
 	def work(self):
-		if time.time()-self.run_start_time > 5:
-			# stop looking for tags after 5s 
+		if time.time()-self.run_start_time > 9:
+			# stop looking for tags 
 			return False
 		return Decoder.work(self) and not self.found_tags
 
@@ -922,7 +911,7 @@ class FileList:
 		template_tags    = "%(artist)s - <i>%(album)s</i> - <b>%(title)s</b>\n<small>%(filename)s</small>"
 		template_loading = "<i>%s</i>\n<small>%%(filename)s</small>" \
 							% _("loading tags...")
-		template_notags  = '<span foreground="red">%s</span>\n<small>%%(filename)s</small>' \
+		template_notags  = '<i>  %s</i>\n<small>%%(filename)s</small>' \
 							% _("no tags")
 
 		params = {}
@@ -944,7 +933,7 @@ class FileList:
 				if ord(c) < 127:
 					str += c
 				else:
-					str += '<span foreground="yellow" background="red"><b>!</b></span>'
+					str += '<span foreground="yellow" background="red"><b>?</b></span>'
 
 			error.show(_("Invalid character in filename!"), str)
 			sys.exit(1)
@@ -962,7 +951,6 @@ class FileList:
 	def append_file_tags(self, tagreader):
 		sound_file = tagreader.get_sound_file()
 
-
 		fields = {}
 		for key in ALL_COLUMNS:
 			fields[key] = _("unknown")
@@ -970,7 +958,6 @@ class FileList:
 		fields["filename"] = urllib.unquote(sound_file.get_filename())
 
 		self.model.set(sound_file.model, 0, self.format_cell(sound_file))
-
 		self.window.set_sensitive()
 
 	def remove(self, iter):
@@ -1144,10 +1131,6 @@ class PreferencesDialog:
 			
 		self.mp3_quality = glade.get_widget("mp3_quality")
 		self.mp3_mode = glade.get_widget("mp3_mode")
-		#w = glade.get_widget("mp3_mode")
-		#mode = self.get_int("mp3-mode")
-		#w.set_active(mode)
-		#self.change_mp3_mode(mode)
 
 		mode = self.get_string("mp3-mode")
 		self.change_mp3_mode(mode)
@@ -1231,9 +1214,7 @@ class PreferencesDialog:
 		generator = TargetNameGenerator()
 		generator.set_target_suffix(output_suffix)
 		if self.get_int("same-folder-as-input"):
-			tuple = urlparse.urlparse(sound_file.get_uri())
-			path = tuple[2]
-			generator.set_folder(os.path.dirname(path))
+			generator.set_folder(sound_file.get_base_path())
 		else:
 			path, filename = os.path.split(sound_file.get_filename())
 			path = ""
@@ -1249,9 +1230,6 @@ class PreferencesDialog:
 		return generator.get_target_name(sound_file)
 
 	def set_sensitive(self):
-	
-		#TODO
-		return
 	
 		for widget in self.sensitive_widgets.values():
 			widget.set_sensitive(False)
@@ -1457,7 +1435,6 @@ class ConverterQueue(TaskQueue):
 	def add(self, sound_file):
 	
 		output_filename = self.window.prefs.generate_filename(sound_file)
-		
 		path = urlparse.urlparse(output_filename) [2]
 		
 		path = urllib.unquote(path)
@@ -1513,7 +1490,6 @@ class ConverterQueue(TaskQueue):
 				# cancel operation
 				# TODO
 				raise ConverterQueueCanceled()
-				#self.stop()
 			
 		c = Converter(sound_file, output_filename, 
 					  self.window.prefs.get_string("output-mime-type"))

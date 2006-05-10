@@ -1,3 +1,7 @@
+2006-05-10  Gautier Portet <kassoulet gmail com>
+
+	* soundconverter.py: Fix doubled folder (#7403).
+
 2006-04-22  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: Fix an uncatched InvalidURIError when adding files.

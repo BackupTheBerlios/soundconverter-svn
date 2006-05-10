@@ -3,7 +3,7 @@
 #
 
 PACKAGE=soundconverter
-VERSION=0.8.3
+VERSION=0.8.4
 
 LINGUAS=fr pl pt_BR
 

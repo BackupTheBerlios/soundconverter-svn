@@ -2,6 +2,9 @@
  
 bugs:
 
+ * better handling when a file have no tags -> we must then switch to another filename creation method
+ * file overwrite is done only one time when  adding to ConverterQueue, this is really bad when we don't have tags!
+   maybe just don't name with tags when there are no tags ? :)
  * encoders as plugins 
  * optional "advanced" encoder settings
  * give time estimates for progress bar
