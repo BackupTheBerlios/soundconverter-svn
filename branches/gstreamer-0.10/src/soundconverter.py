@@ -46,6 +46,7 @@ import gnome
 import gnome.ui
 import gconf
 import gobject
+gobject.threads_init()
 try:
 	# gnome.vfs is deprecated
 	import gnomevfs
@@ -422,17 +423,19 @@ class BackgroundTask:
 		self.run_start_time = time.time()
 		self.current_paused_time = 0
 		self.paused_time = 0
-		self.id = gobject.idle_add(self.do_work, priority=gobject.PRIORITY_LOW)
-		#self.id = gobject.timeout_add(10, self.do_work, priority=gobject.PRIORITY_LOW)
+		#self.id = gobject.idle_add(self.do_work, priority=gobject.PRIORITY_LOW)
+		self.id = gobject.timeout_add(10, self.do_work, priority=gobject.PRIORITY_LOW)
 	
 	def do_work(self):
 		"""Do some work by calling work(). Call finish() if work is done."""
 		try:
-			print "do_work:", self
+			gtk.threads_enter()
+			#print "do_work:", self
 			#time.sleep(0.01)
 			if self.paused:
 				if not self.current_paused_time:
 					self.current_paused_time = time.time()
+				gtk.threads_leave()
 				return True
 			else:
 				if self.current_paused_time:
@@ -440,13 +443,17 @@ class BackgroundTask:
 					self.current_paused_time = 0
 					
 			if self.work():
+				gtk.threads_leave()
 				return True
 			else:
 				self.run_finish_time = time.time()
 				self.finish()
+				gtk.threads_leave()
+				self = None
 				return False
 		except SoundConverterException, e:
 			error.show_exception(e)
+			gtk.threads_leave()
 			return False
 
 	def stop(self):
@@ -579,7 +586,7 @@ class Pipeline(BackgroundTask):
 		if self.pipeline.get_state() == gst.STATE_NULL:
 			print "error: pipeline.state == null"
 			#return False
-		print "work:", self
+		#print "work:", self
 		#time.sleep(0.01)
 		if self.eos:
 			return False
@@ -607,6 +614,7 @@ class Pipeline(BackgroundTask):
 		pass
 
 	def on_message(self, bus, message):
+		#import traceback ;traceback.print_stack()
 		t = message.type
 		#print message
 		if t == gst.MESSAGE_STATE_CHANGED:
@@ -632,7 +640,7 @@ class Pipeline(BackgroundTask):
 
 	def play(self):
 		if not self.parsed:
-			#print "launching: '%s'" % self.command
+			print "launching: '%s'" % self.command
 			self.pipeline = gst.parse_launch(self.command)
 			for name, signal, callback in self.signals:
 				self.pipeline.get_by_name(name).connect(signal,callback)
@@ -1015,12 +1023,19 @@ class FileList:
 				log(_("file already present: '%s'") % sound_file.get_uri())
 				return 
 			#print "+ ", sound_file.get_filename()
-			self.filelist[sound_file.get_uri()] = True
-			typefinder = TypeFinder(sound_file)
-			typefinder.set_found_type_hook(self.found_type)
-			self.typefinders.add(typefinder)
-		if not self.typefinders.is_running():
-			self.typefinders.run()
+			#self.filelist[sound_file.get_uri()] = True
+			#typefinder = TypeFinder(sound_file)
+			#typefinder.set_found_type_hook(self.found_type)
+			#self.typefinders.add(typefinder)
+		#if not self.typefinders.is_running():
+		#	self.typefinders.run()
+
+			self.append_file(sound_file)
+			tagreader = TagReader(sound_file)
+			tagreader.set_found_tag_hook(self.append_file_tags)
+			self.tagreaders.add(tagreader)
+		if not self.tagreaders.is_running():
+			self.tagreaders.run()
 	
 	def add_folder(self, folder):
 
@@ -1076,8 +1091,11 @@ class FileList:
 		sound_file = tagreader.get_sound_file()
 
 		self.tc += 1
-		print "  t %3d/%3d %s" % ( self.tc, self.fc, sound_file.get_filename())
-		
+		print "  t %3d/%3d %s  '%s'" % ( self.tc, self.fc, sound_file.get_filename(), sound_file.get_tag("title"))
+	
+		#TODO
+		#return
+
 		fields = {}
 		for key in ALL_COLUMNS:
 			fields[key] = _("unknown")
@@ -2015,8 +2033,9 @@ def gui_main(input_files):
 	for input_file in input_files:
 		win.filelist.add_file(input_file)
 	win.set_sensitive()
+	gtk.threads_enter()
 	gtk.main()
-
+	gtk.threads_leave()
 
 def cli_tags_main(input_files):
 	global error
