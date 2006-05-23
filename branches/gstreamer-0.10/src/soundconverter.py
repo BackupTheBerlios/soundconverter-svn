@@ -47,6 +47,7 @@ import gnome.ui
 import gconf
 import gobject
 gobject.threads_init()
+
 try:
 	# gnome.vfs is deprecated
 	import gnomevfs
@@ -430,8 +431,6 @@ class BackgroundTask:
 		"""Do some work by calling work(). Call finish() if work is done."""
 		try:
 			gtk.threads_enter()
-			#print "do_work:", self
-			#time.sleep(0.01)
 			if self.paused:
 				if not self.current_paused_time:
 					self.current_paused_time = time.time()
@@ -1102,8 +1101,9 @@ class FileList:
 		fields["META"] = sound_file
 		fields["filename"] = urllib.unquote(sound_file.get_filename())
 
-		self.model.set(sound_file.model, 0, self.format_cell(sound_file))
+		print "tag:", sound_file["title"]
 
+		self.model.set(sound_file.model, 0, self.format_cell(sound_file))
 		self.window.set_sensitive()
 
 	def remove(self, iter):
