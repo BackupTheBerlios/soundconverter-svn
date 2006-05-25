@@ -1,6 +1,12 @@
+2006-05-25  Gautier Portet  <kassoulet gmail com>
+
+	* soundconverter.py: fix problem with set_sensituve().
+	  release 0.8.5
+
 2006-05-10  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: Fix doubled folder (#7403).
+	  release 0.8.4
 
 2006-04-22  Gautier Portet <kassoulet gmail com>
 

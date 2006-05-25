@@ -20,7 +20,7 @@
 # USA
 
 NAME = "SoundConverter"
-VERSION = "0.8.4"
+VERSION = "0.8.5"
 GLADE = "soundconverter.glade"
 
 # Python standard stuff.
@@ -1019,14 +1019,14 @@ class PreferencesDialog:
 		self.quality_tabs = glade.get_widget("quality_tabs")
 
 		self.target_bitrate = None
-
-		self.convert_setting_from_old_version()
-		self.set_widget_initial_values(glade)
 		
 		self.sensitive_widgets = {}
 		for name in self.sensitive_names:
 			self.sensitive_widgets[name] = glade.get_widget(name)
 			assert self.sensitive_widgets[name] != None
+		
+		self.convert_setting_from_old_version()
+		self.set_widget_initial_values(glade)
 		self.set_sensitive()
 
 
