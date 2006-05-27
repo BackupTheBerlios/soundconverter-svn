@@ -1,6 +1,12 @@
+2006-05-27  Gautier Portet  <kassoulet gmail com>
+
+	* soundconverter: Added a custom file pattern choice.
+	  (thanks Adolfo)
+	  some cleanup.
+
 2006-05-25  Gautier Portet  <kassoulet gmail com>
 
-	* soundconverter.py: fix problem with set_sensituve().
+	* soundconverter.py: Fix problem with set_sensituve().
 	  release 0.8.5
 
 2006-05-10  Gautier Portet <kassoulet gmail com>

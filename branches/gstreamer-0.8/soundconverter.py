@@ -46,6 +46,12 @@ import gst
 import gconf
 import gobject
 
+print "%s %s" % (NAME, VERSION)
+print "  using Gstreamer version: %s, Python binding version: %s" % (
+		".".join([str(s) for s in gst.gst_version]), 
+		".".join([str(s) for s in gst.pygst_version]) )
+
+
 try:
 	# gnome.vfs is deprecated
 	import gnomevfs
@@ -101,8 +107,6 @@ def vfs_walk(uri):
 	if str(uri)[-1] != '/':
 		uri = uri.append_string("/")
 
-	#info = gnomevfs.get_file_info(uri, gnomevfs.FILE_INFO_GET_MIME_TYPE)
-	info = gnomevfs.get_file_info(uri, gnomevfs.FILE_INFO_FIELDS_TYPE)
 	filelist = []	
 
 	try:
@@ -145,14 +149,14 @@ def vfs_makedirs(path_to_create):
 			return False
 	return True	
 
-def markup_escape(str):
-	str = "&amp;".join(str.split("&"))
-	str = "&lt;".join(str.split("<"))
-	str = "&gt;".join(str.split(">"))
-	return str
+def markup_escape(markup):
+	markup = "&amp;".join(markup.split("&"))
+	markup = "&lt;".join(markup.split("<"))
+	markup = "&gt;".join(markup.split(">"))
+	return markup
 	
 def log(message):
-	if get("quiet") == False:
+	if get_option("quiet") == False:
 		print message
 
 def sleep(duration):
@@ -325,14 +329,8 @@ class ErrorDialog:
 		self.dialog.run()
 		self.dialog.hide()
 
-	def encode(self, str):
-		str = "&amp;".join(str.split("&"))
-		str = "&lt;".join(str.split("<"))
-		str = "&gt;".join(str.split(">"))
-		return str
-
 	def show_exception(self, exception):
-		self.show("<b>%s</b>" % self.encode(exception.primary),
+		self.show("<b>%s</b>" % markup_escape(exception.primary),
 				  exception.secondary)
 
 
@@ -847,7 +845,6 @@ class FileList:
 						   mime_id, time):
 
 		if mime_id >= 0 and mime_id < len(self.drop_mime_types):
-			mime_type = self.drop_mime_types[mime_id]
 			file_list = []
 			for uri in selection.data.split("\n"):
 				uri = uri.strip()
@@ -863,14 +860,14 @@ class FileList:
 
 	def get_files(self):
 		files = []
-		iter = self.model.get_iter_first()
-		while iter:
-			file = {}
+		i = self.model.get_iter_first()
+		while i:
+			f = {}
 			for c in ALL_COLUMNS:
-				file[c] = self.model.get_value(iter, ALL_COLUMNS.index(c))
-			files.append(file["META"])
+				f[c] = self.model.get_value(i, ALL_COLUMNS.index(c))
+			files.append(f["META"])
 
-			iter = self.model.iter_next(iter)
+			i = self.model.iter_next(i)
 		return files
 	
 	def found_type(self, sound_file, mime):
@@ -928,24 +925,24 @@ class FileList:
 				else:
 					s = template_loading % params
 		except UnicodeDecodeError:
-			str = ""
+			s = ""
 			for c in markup_escape(urllib.unquote(sound_file.get_uri())):
 				if ord(c) < 127:
-					str += c
+					s += c
 				else:
-					str += '<span foreground="yellow" background="red"><b>?</b></span>'
+					s += '<span foreground="yellow" background="red"><b>?</b></span>'
 
-			error.show(_("Invalid character in filename!"), str)
+			error.show(_("Invalid character in filename!"), s)
 			sys.exit(1)
 				
 		return s
 
 	def append_file(self, sound_file):
 
-		iter = self.model.append()
-		sound_file.model = iter
-		self.model.set(iter, 0, self.format_cell(sound_file))
-		self.model.set(iter, 1, sound_file)
+		i = self.model.append()
+		sound_file.model = i
+		self.model.set(i, 0, self.format_cell(sound_file))
+		self.model.set(i, 1, sound_file)
 	
 	
 	def append_file_tags(self, tagreader):
@@ -967,7 +964,7 @@ class FileList:
 		
 	def is_nonempty(self):
 		try:
-			iter = self.model.get_iter((0,))
+			self.model.get_iter((0,))
 		except ValueError:
 			return False
 		return True
@@ -982,6 +979,7 @@ class PreferencesDialog:
 		("%(track-number)02d-%(title)s", _("Track number - title")),
 		("%(title)s", _("Track title")),
 		("%(artist)s-%(title)s", _("Artist - title")),
+		("Custom", _("Custom filename pattern")),
 	]
 	
 	subfolder_patterns = [
@@ -995,6 +993,7 @@ class PreferencesDialog:
 		"create-subfolders": 0,
 		"subfolder-pattern-index": 0,
 		"name-pattern-index": 0,
+		"custom-filename-pattern": "{Track} - {Title}",
 		"replace-messy-chars": 0,
 		"output-mime-type": "audio/x-vorbis",
 		"output-suffix": ".ogg",
@@ -1014,6 +1013,9 @@ class PreferencesDialog:
 		self.dialog = glade.get_widget("prefsdialog")
 		self.into_selected_folder = glade.get_widget("into_selected_folder")
 		self.target_folder_chooser = glade.get_widget("target_folder_chooser")
+		self.basename_pattern = glade.get_widget("basename_pattern")
+		self.custom_filename_box = glade.get_widget("custom_filename_box")
+		self.custom_filename = glade.get_widget("custom_filename")
 		self.example = glade.get_widget("example_filename")
 		self.aprox_bitrate = glade.get_widget("aprox_bitrate")
 		self.quality_tabs = glade.get_widget("quality_tabs")
@@ -1093,8 +1095,8 @@ class PreferencesDialog:
 		model = w.get_model()
 		model.clear()
 		for pattern, desc in self.subfolder_patterns:
-			iter = model.append()
-			model.set(iter, 0, desc)
+			i = model.append()
+			model.set(i, 0, desc)
 		w.set_active(self.get_int("subfolder-pattern-index"))
 
 		if self.get_int("replace-messy-chars"):
@@ -1143,7 +1145,13 @@ class PreferencesDialog:
 			iter = model.append()
 			model.set(iter, 0, desc)
 		w.set_active(self.get_int("name-pattern-index"))
-
+		
+		self.custom_filename.set_text(self.get_string("custom-filename-pattern"))
+		if self.basename_pattern.get_active() == len(self.basename_patterns)-1:
+			self.custom_filename_box.set_sensitive(True)
+		else:
+			self.custom_filename_box.set_sensitive(False)
+			
 		self.update_example()
 
 	def update_selected_folder(self):
@@ -1196,12 +1204,12 @@ class PreferencesDialog:
 			"track-number": 1L,
 			"track-count": 11L,
 		})
-		self.example.set_markup(self.generate_filename(sound_file))
+		self.example.set_markup(self.generate_filename(sound_file, for_display=True))
 		
 		markup = _("<small>Target bitrate: %s</small>") % self.get_bitrate_from_settings()
 		self.aprox_bitrate.set_markup( markup )
 
-	def generate_filename(self, sound_file):
+	def generate_filename(self, sound_file, for_display=False):
 		self.gconf.clear_cache()
 		output_type = self.get_string("output-mime-type")
 		output_suffix = {
@@ -1224,10 +1232,21 @@ class PreferencesDialog:
 				generator.set_subfolder_pattern(
 					self.get_subfolder_pattern())
 		generator.set_basename_pattern(self.get_basename_pattern())
-		generator.set_replace_messy_chars(
-			self.get_int("replace-messy-chars"))
+		if for_display:
+			generator.set_replace_messy_chars(False)
+		else:
+			generator.set_replace_messy_chars(
+				self.get_int("replace-messy-chars"))
 
 		return generator.get_target_name(sound_file)
+	
+	def process_custom_pattern(self, pattern):
+			pattern = pattern.replace("{Artist}", "%(artist)s")
+			pattern = pattern.replace("{Album}", "%(album)s")
+			pattern = pattern.replace("{Title}", "%(title)s")
+			pattern = pattern.replace("{Track}", "%(track-number)02d")
+			pattern = pattern.replace("{Total}", "%(track-total)02d")
+			return pattern
 
 	def set_sensitive(self):
 	
@@ -1315,14 +1334,25 @@ class PreferencesDialog:
 
 	def on_basename_pattern_changed(self, combobox):
 		self.set_int("name-pattern-index", combobox.get_active())
+		if combobox.get_active() == len(self.basename_patterns)-1:
+			self.custom_filename_box.set_sensitive(True)
+		else:
+			self.custom_filename_box.set_sensitive(False)
 		self.update_example()
 
 	def get_basename_pattern(self):
 		index = self.get_int("name-pattern-index")
 		if index < 0 or index >= len(self.basename_patterns):
 			index = 0
-		return self.basename_patterns[index][0]
-		
+		if self.basename_pattern.get_active() == len(self.basename_patterns)-1:
+			return self.process_custom_pattern(self.custom_filename.get_text())
+		else:
+			return self.basename_patterns[index][0]
+	
+	def on_custom_filename_changed(self, entry):
+		self.set_string("custom-filename-pattern", entry.get_text())
+		self.update_example()
+	
 	def on_replace_messy_chars_toggled(self, button):
 		if button.get_active():
 			self.set_int("replace-messy-chars", 1)
@@ -1612,17 +1642,17 @@ class SoundConverterWindow:
 	# class and give the same name in the .glade file.
 	
 	def connect(self, glade, objects):
-		dict = {}
-		for object in [self] + objects:
-			for name, member in inspect.getmembers(object):
-				dict[name] = member
-		glade.signal_autoconnect(dict)
+		dicts = {}
+		for o in [self] + objects:
+			for name, member in inspect.getmembers(o):
+				dicts[name] = member
+		glade.signal_autoconnect(dicts)
 
 	def close(self, *args):
 		self.converter.stop()
 		self.widget.destroy()
 		gtk.main_quit()
-		return gtk.TRUE
+		return True
 
 	on_window_delete_event = close
 	on_quit_activate = close
@@ -1655,8 +1685,8 @@ class SoundConverterWindow:
 	def on_remove_activate(self, *args):
 		model, paths = self.filelist_selection.get_selected_rows()
 		while paths:
-			iter = self.filelist.model.get_iter(paths[0])
-			self.filelist.remove(iter)
+			i = self.filelist.model.get_iter(paths[0])
+			self.filelist.remove(i)
 			model, paths = self.filelist_selection.get_selected_rows()
 		self.set_sensitive()
 
@@ -1842,24 +1872,24 @@ settings = {
 }
 
 
-def set(key, value):
+def set_option(key, value):
 	assert key in settings
 	settings[key] = value
 
 
-def get(key):
+def get_option(key):
 	assert key in settings
 	return settings[key]
 
 
 def print_help(*args):
 	print _("Usage: %s [options] [soundfile ...]") % sys.argv[0]
-	for short, long, func, doc in options:
+	for short_arg, long_arg, func, doc in options:
 		print
-		if short[-1] == ":":
-			print "	 -%s arg, --%sarg" % (short[:1], long)
+		if short_arg[-1] == ":":
+			print "	 -%s arg, --%sarg" % (short_arg[:1], long_arg)
 		else:
-			print "	 -%s, --%s" % (short[:1], long)
+			print "	 -%s, --%s" % (short_arg[:1], long_arg)
 		for line in textwrap.wrap(doc):
 			print "	   %s" % line
 	sys.exit(0)
@@ -1870,19 +1900,19 @@ options = [
 	("h", "help", print_help,
 	 _("Print out a usage summary.")),
 
-	("b", "batch", lambda optarg: set("mode", "batch"),
+	("b", "batch", lambda optarg: set_option("mode", "batch"),
 	 _("Convert in batch mode, from command line, without a graphical user\n interface. You can use this from, say, shell scripts.")),
 
-	("m:", "mime-type=", lambda optarg: set("cli-output-type", optarg),
-	 _("Set the output MIME type for batch mode. The default is\n %s . Note that you probably want to set\n the output suffix as well.") % get("cli-output-type")),
+	("m:", "mime-type=", lambda optarg: set_option("cli-output-type", optarg),
+	 _("Set the output MIME type for batch mode. The default is\n %s . Note that you probably want to set\n the output suffix as well.") % get_option("cli-output-type")),
 	 
-	("q", "quiet", lambda optarg: set("quiet", True),
+	("q", "quiet", lambda optarg: set_option("quiet", True),
 	 _("Be quiet. Don't write normal output, only errors.")),
 
-	("s:", "suffix=", lambda optarg: set("cli-output-suffix", optarg),
-	 _("Set the output filename suffix for batch mode. The default is \n %s . Note that the suffix does not affect\n the output MIME type.") % get("cli-output-suffix")),
+	("s:", "suffix=", lambda optarg: set_option("cli-output-suffix", optarg),
+	 _("Set the output filename suffix for batch mode. The default is \n %s . Note that the suffix does not affect\n the output MIME type.") % get_option("cli-output-suffix")),
 
-	("t", "tags", lambda optarg: set("mode", "tags"),
+	("t", "tags", lambda optarg: set_option("mode", "tags"),
 	 _("Show tags for input files instead of converting them. This indicates \n command line batch mode and disables the graphical user interface.")),
 
 	]
@@ -1912,9 +1942,9 @@ def main():
 	args = map(filename_to_uri, args)
 	args = map(SoundFile, args)
 
-	if get("mode") == "gui":
+	if get_option("mode") == "gui":
 		gui_main(args)
-	elif get("mode") == "tags":
+	elif get_option("mode") == "tags":
 		cli_tags_main(args)
 	else:
 		cli_convert_main(args)
