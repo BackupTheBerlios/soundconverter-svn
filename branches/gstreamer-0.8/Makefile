@@ -3,9 +3,9 @@
 #
 
 PACKAGE=soundconverter
-VERSION=0.8.5
+VERSION=0.8.6
 
-LINGUAS=fr pl pt_BR
+LINGUAS=fr pl pt_BR es
 
 PO_FILES=$(patsubst %,po/%.po, $(LINGUAS))
 MO_FILES=$(patsubst %.po,%.mo, $(PO_FILES))

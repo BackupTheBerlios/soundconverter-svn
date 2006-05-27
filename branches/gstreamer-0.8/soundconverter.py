@@ -20,7 +20,7 @@
 # USA
 
 NAME = "SoundConverter"
-VERSION = "0.8.5"
+VERSION = "0.8.6"
 GLADE = "soundconverter.glade"
 
 # Python standard stuff.
