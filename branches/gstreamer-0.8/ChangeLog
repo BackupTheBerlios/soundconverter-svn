@@ -1,3 +1,8 @@
+2006-05-31  Gautier Portet <kassoulet gmail com>
+
+	* soundconverter.py: Added an error message when we fail to create a
+	  gnomevfssrc element.
+
 2006-05-27  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter: Added Spanish translation.

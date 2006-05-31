@@ -547,6 +547,9 @@ class TypeFinder(Pipeline):
 		self.found_type = ""
 		
 		filesrc = self.make_element("gnomevfssrc", "src")
+		if not filesrc:
+			error.show(_("Cannot create a GnomeVFS source."),"gnomevfssrc is not in the GStreamer plugin registry")
+			sys.exit(2)
 		filesrc.set_property("location", self.sound_file.get_uri())
 		self.add(filesrc)
 
