@@ -77,6 +77,7 @@ gtk.glade.textdomain(PACKAGE)
 TRANSLATORS = _("""Guillaume Bedot <guillaume.bedot wanadoo.fr> (french)
 Dominik Zabłotny <dominz wp.pl> (polish) 
 Jonh Wendell <wendell bani.com.br> (Brazilian)
+Marc E. <m4rccd yahoo.com> (Spanish)
 """)
 
 # Names of columns in the file list
@@ -96,7 +97,7 @@ mime_whitelist = (
 	"application/x-shockwave-flash",
 )
 
-
+# VFS helpers
 def vfs_walk(uri):
 	"""similar to os.path.walk, but with gnomevfs.
 	
@@ -148,6 +149,29 @@ def vfs_makedirs(path_to_create):
 		except :
 			return False
 	return True	
+
+# GStreamer gnomevfssrc helpers
+
+def vfs_encode_filename(filename):
+	return filename
+
+def file_encode_filename(filename):
+	return gnomevfs.get_local_path_from_uri(filename)
+	
+use_gnomevfs = False
+
+if gst.element_factory_find("gnomevfssrc"):
+	gstreamer_source = "gnomevfssrc"
+	gstreamer_sink = "gnomevfssink"
+	encode_filename = vfs_encode_filename
+	use_gnomevfs = True
+	print "  using gnomevfssrc"
+else:
+	gstreamer_source = "filesrc"
+	gstreamer_sink = "filesink"
+	encode_filename = file_encode_filename
+	print "  NOT using gnomevfssrc, look for any gnomevfs gstreamer package."
+
 
 def markup_escape(markup):
 	markup = "&amp;".join(markup.split("&"))
@@ -546,11 +570,8 @@ class TypeFinder(Pipeline):
 		self.sound_file = sound_file
 		self.found_type = ""
 		
-		filesrc = self.make_element("gnomevfssrc", "src")
-		if not filesrc:
-			error.show(_("Cannot create a GnomeVFS source."),"gnomevfssrc is not in the GStreamer plugin registry")
-			sys.exit(2)
-		filesrc.set_property("location", self.sound_file.get_uri())
+		filesrc = self.make_element( gstreamer_source, "src")
+		filesrc.set_property("location", encode_filename(self.sound_file.get_uri()))
 		self.add(filesrc)
 
 		typefind = self.make_element("typefind", "typefinder")
@@ -587,8 +608,8 @@ class Decoder(Pipeline):
 		Pipeline.__init__(self)
 		self.sound_file = sound_file
 		
-		filesrc = self.make_element("gnomevfssrc", "src")
-		filesrc.set_property("location", self.sound_file.get_uri())
+		filesrc = self.make_element(gstreamer_source, "src")
+		filesrc.set_property("location", encode_filename(self.sound_file.get_uri()))
 		self.add(filesrc)
 
 		decodebin = self.make_element("decodebin", "decodebin")
@@ -746,9 +767,9 @@ class Converter(Decoder):
 				dialog.hide()
 				return
 				
-		sink = self.make_element("gnomevfssink", "sink")
+		sink = self.make_element( gstreamer_sink, "sink")
 		log( _("Writing to: '%s'") % urllib.unquote(self.output_filename) )
-		sink.set_property("location", self.output_filename)
+		sink.set_property("location", encode_filename(self.output_filename))
 		self.add(sink)
 	
 		self.converting = True
@@ -1608,7 +1629,7 @@ class SoundConverterWindow:
 													gtk.STOCK_OPEN,
 													gtk.RESPONSE_OK))
 		self.addchooser.set_select_multiple(True)
-		self.addchooser.set_local_only(False)
+		self.addchooser.set_local_only(not use_gnomevfs)
 
 		self.addfolderchooser = gtk.FileChooserDialog(_("Add Folder..."),
 												self.widget,
@@ -1618,7 +1639,7 @@ class SoundConverterWindow:
 													gtk.STOCK_OPEN,
 													gtk.RESPONSE_OK))
 		self.addfolderchooser.set_select_multiple(True)
-		self.addfolderchooser.set_local_only(False)
+		self.addfolderchooser.set_local_only(not use_gnomevfs)
 
 		self.connect(glade, [self.prefs])
 		
