@@ -46,12 +46,6 @@ import gst
 import gconf
 import gobject
 
-print "%s %s" % (NAME, VERSION)
-print "  using Gstreamer version: %s, Python binding version: %s" % (
-		".".join([str(s) for s in gst.gst_version]), 
-		".".join([str(s) for s in gst.pygst_version]) )
-
-
 try:
 	# gnome.vfs is deprecated
 	import gnomevfs
@@ -79,6 +73,20 @@ Dominik Zabłotny <dominz wp.pl> (polish)
 Jonh Wendell <wendell bani.com.br> (Brazilian)
 Marc E. <m4rccd yahoo.com> (Spanish)
 """)
+
+
+print "%s %s" % (NAME, VERSION)
+print "  Gstreamer version: %s, Python binding version: %s" % (
+		".".join([str(s) for s in gst.gst_version]), 
+		".".join([str(s) for s in gst.pygst_version]) )
+
+if gst.gst_version >= (0,10,0):
+	print _("Sorry, only GStreamer 0.8 is supported!")
+	gtk.MessageDialog(None, 0, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, 
+		_("Sorry, only GStreamer 0.8 is supported!\nYours is: %s")
+		% ".".join([str(s) for s in gst.gst_version]) ).run()
+	sys.exit(1)
+
 
 # Names of columns in the file list
 VISIBLE_COLUMNS = ["filename"]
