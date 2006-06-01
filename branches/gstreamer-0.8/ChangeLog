@@ -1,6 +1,7 @@
 2006-06-01  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: Added an error dialog when GStreamer version > 0.8.
+	  release 0.8.6 
 
 2006-05-31  Gautier Portet <kassoulet gmail com>
 
