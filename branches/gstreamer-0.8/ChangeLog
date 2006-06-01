@@ -1,7 +1,7 @@
 2006-05-31  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: Removed previous fix, and added the possibility to
-	  use filesrc if gnomevfssrc is absent instead.
+	  use filesrc instead of gnomevfssrc if it's absent. (#7652) (debian #367253)
 	* soundconverter.py: Added an error message when we fail to create a
 	  gnomevfssrc element.
 
