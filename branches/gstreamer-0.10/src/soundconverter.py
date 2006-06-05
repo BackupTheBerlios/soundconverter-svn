@@ -70,7 +70,6 @@ print "  using Gstreamer version: %s, Python binding version: %s" % (
 		".".join([str(s) for s in gst.pygst_version]) )
 
 
-
 # This is missing from gst, for some reason.
 FORMAT_PERCENT_SCALE = 10000
 
@@ -425,7 +424,7 @@ class BackgroundTask:
 		self.current_paused_time = 0
 		self.paused_time = 0
 		#self.id = gobject.idle_add(self.do_work, priority=gobject.PRIORITY_LOW)
-		self.id = gobject.timeout_add(10, self.do_work, priority=gobject.PRIORITY_LOW)
+		self.id = gobject.timeout_add(100, self.do_work, priority=gobject.PRIORITY_LOW)
 	
 	def do_work(self):
 		"""Do some work by calling work(). Call finish() if work is done."""
@@ -656,7 +655,15 @@ class Pipeline(BackgroundTask):
 		self.pipeline.set_state(gst.STATE_PLAYING)
 
 	def stop_pipeline(self):
+		if not self.pipeline:
+			print "pipeline already stopped!"
+			return
+		bus = self.pipeline.get_bus()
+		bus.disconnect(self.watch_id)
+		bus.remove_signal_watch()
 		self.pipeline.set_state(gst.STATE_NULL)
+		self.pipeline = None
+		del self.watch_id
 
 	#def get_progress(self):
 	#	if not self.processing:
@@ -2015,9 +2022,12 @@ class SoundConverterWindow:
 		#	return
 			
 		r = (t / fraction - t)
-		s = r%60
-		m = r/60
-		remaining = _("%d:%02d left") % (m,s)
+		if r < 0 or r>60*60:
+			remaining = "Error"
+		else:
+			s = r%60
+			m = r/60
+			remaining = _("%d:%02d left") % (m,s)
 		self.display_progress(remaining)
 
 	def set_status(self, text):

@@ -1,3 +1,7 @@
+2006-06-05  Gautier Portet <kassoulet gmail com>
+
+	* soundconverter.py: YEEPEE!!! The bug plaging the gst0.10 port is GONE !!
+
 2006-03-29  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: More gstreamer0.10 love. The new api is nice, but
