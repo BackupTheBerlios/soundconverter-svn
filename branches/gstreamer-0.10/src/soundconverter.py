@@ -935,10 +935,6 @@ class FileList:
 		self.tagreaders  = TaskQueue()
 		self.typefinders = TaskQueue()
 		
-		self.tc = 0
-		self.fc = 0
-		self.ic = 0
-		
 		self.filelist={}
 		
 		args = []
@@ -967,7 +963,6 @@ class FileList:
 										markup=ALL_COLUMNS.index(name))
 			self.widget.append_column(column)
 	
-
 	def drag_data_received(self, widget, context, x, y, selection, 
 						   mime_id, time):
 
@@ -1016,21 +1011,14 @@ class FileList:
 			if sound_file.get_uri() in self.filelist:
 				log(_("file already present: '%s'") % sound_file.get_uri())
 				return 
-			#print "+ ", sound_file.get_filename()
-			#self.filelist[sound_file.get_uri()] = True
-			#typefinder = TypeFinder(sound_file)
-			#typefinder.set_found_type_hook(self.found_type)
-			#self.typefinders.add(typefinder)
-		#if not self.typefinders.is_running():
-		#	self.typefinders.run()
 
-			self.append_file(sound_file)
-			tagreader = TagReader(sound_file)
-			tagreader.set_found_tag_hook(self.append_file_tags)
-			self.tagreaders.add(tagreader)
-		if not self.tagreaders.is_running():
-			self.tagreaders.run()
-	
+			self.filelist[sound_file.get_uri()] = True
+			typefinder = TypeFinder(sound_file)
+			typefinder.set_found_type_hook(self.found_type)
+			self.typefinders.add(typefinder)
+		if not self.typefinders.is_running():
+			self.typefinders.run()
+			
 	def add_folder(self, folder):
 
 		base = folder
@@ -1079,24 +1067,16 @@ class FileList:
 		sound_file.model = iter
 		self.model.set(iter, 0, self.format_cell(sound_file))
 		self.model.set(iter, 1, sound_file)
-		self.fc += 1
+	
 	
 	def append_file_tags(self, tagreader):
 		sound_file = tagreader.get_sound_file()
-
-		self.tc += 1
-		print "  t %3d/%3d %s  '%s'" % ( self.tc, self.fc, sound_file.get_filename(), sound_file.get_tag("title"))
-	
-		#TODO
-		#return
 
 		fields = {}
 		for key in ALL_COLUMNS:
 			fields[key] = _("unknown")
 		fields["META"] = sound_file
 		fields["filename"] = urllib.unquote(sound_file.get_filename())
-
-		print "tag:", sound_file["title"]
 
 		self.model.set(sound_file.model, 0, self.format_cell(sound_file))
 		self.window.set_sensitive()
@@ -2043,12 +2023,9 @@ class SoundConverterWindow:
 		#	return
 			
 		r = (t / fraction - t)
-		if r < 0 or r>60*60:
-			remaining = "Error"
-		else:
-			s = r%60
-			m = r/60
-			remaining = _("%d:%02d left") % (m,s)
+		s = r%60
+		m = r/60
+		remaining = _("%d:%02d left") % (m,s)
 		self.display_progress(remaining)
 
 	def set_status(self, text):
