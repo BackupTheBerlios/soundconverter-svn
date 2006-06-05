@@ -105,6 +105,18 @@ mime_whitelist = (
 	"application/x-shockwave-flash",
 )
 
+# Name and pattern for CustomFileChooser
+filepattern = (
+	("All files","*.*"),
+	("MPEG 1 Layer 3 files","*.mp3"),
+	("Ogg Vorbis files","*.ogg"),
+	("iTunes AAC files","*.m4a"),
+	("WAVEform audio format","*.wav"),
+	("Advanced Audio Coding","*.aac"),
+	("Free Lossless Audio Codec","*.flac"),
+	("Audio Codec 3","*.ac3")
+)
+
 # VFS helpers
 def vfs_walk(uri):
 	"""similar to os.path.walk, but with gnomevfs.
@@ -1053,13 +1065,12 @@ class PreferencesDialog:
 		self.quality_tabs = glade.get_widget("quality_tabs")
 
 		self.target_bitrate = None
+		self.convert_setting_from_old_version()
 		
 		self.sensitive_widgets = {}
 		for name in self.sensitive_names:
 			self.sensitive_widgets[name] = glade.get_widget(name)
 			assert self.sensitive_widgets[name] != None
-		
-		self.convert_setting_from_old_version()
 		self.set_widget_initial_values(glade)
 		self.set_sensitive()
 
@@ -1254,7 +1265,9 @@ class PreferencesDialog:
 		generator = TargetNameGenerator()
 		generator.set_target_suffix(output_suffix)
 		if self.get_int("same-folder-as-input"):
-			generator.set_folder(sound_file.get_base_path())
+			tuple = urlparse.urlparse(sound_file.get_uri())
+			path = tuple[2]
+			generator.set_folder(os.path.dirname(path))
 		else:
 			path, filename = os.path.split(sound_file.get_filename())
 			path = ""
@@ -1511,14 +1524,13 @@ class ConverterQueue(TaskQueue):
 			return
 				
 		if exists:
-
 			if self.overwrite_action != None:
 				result = self.overwrite_action
 			else:
 				dialog = self.window.existsdialog
 
 				dpath = os.path.basename(path)
-				dpath = dpath.replace("&","&amp;")
+				dpath = markup_escape(dpath)
 
 				msg = \
 				_("The output file <i>%s</i>\n exists already.\n Do you want to skip the file, overwrite it or cancel the conversion?\n") % \
@@ -1607,6 +1619,79 @@ class ConverterQueue(TaskQueue):
 		self.window.set_sensitive()
 
 
+class CustomFileChooser:
+	"""
+	Custom file chooser.\n
+	"""
+	def __init__(self):
+		"""
+		Constructor
+		Load glade object, create a combobox
+		"""
+		xml = gtk.glade.XML(GLADE,"custom_file_chooser")
+		self.dlg = xml.get_widget("custom_file_chooser")
+		self.dlg.set_title(_("Open a file"))
+		
+		# setup
+		self.fcw = xml.get_widget("filechooserwidget")
+		self.fcw.set_local_only(False)
+		self.fcw.set_select_multiple(True)
+		
+		self.pattern = []
+		
+		# Create combobox model
+		self.combo = xml.get_widget("filtercombo")
+		self.combo.connect("changed",self.on_combo_changed)
+		self.store = gtk.ListStore(str)
+		self.combo.set_model(self.store)
+		combo_rend = gtk.CellRendererText()
+		self.combo.pack_start(combo_rend, True)
+		self.combo.add_attribute(combo_rend, 'text', 0)
+	
+		# get all (gstreamer) knew files Todo
+		for files in filepattern:
+			self.add_pattern(files[0],files[1])
+		self.combo.set_active(0)
+		
+	def add_pattern(self,name,pat):
+		"""
+		Add a new pattern to the combobox.
+		@param name: The pattern name.
+		@type name: string
+		@param pat: the pattern
+		@type pat: string
+		"""
+		self.pattern.append(pat)
+		self.store.append(["%s (%s)" %(name,pat)])
+		
+	def on_combo_changed(self,w):
+		"""
+		Callback for combobox "changed" signal\n
+		Set a new filter for the filechooserwidget
+		"""
+		filter = gtk.FileFilter()
+		filter.add_pattern(self.pattern[self.combo.get_active()])
+		self.fcw.set_filter(filter)
+		
+	def run(self):
+		"""
+		Display the dialog
+		"""
+		return self.dlg.run()
+		
+	def hide(self):
+		"""
+		Hide the dialog
+		"""
+		self.dlg.hide()
+		
+	def get_uris(self):
+		"""
+		Return all the selected uris
+		"""
+		return self.fcw.get_uris()
+		
+		
 class SoundConverterWindow:
 
 	"""Main application class."""
@@ -1628,17 +1713,8 @@ class SoundConverterWindow:
 		self.status = glade.get_widget("statustext")
 		self.about = glade.get_widget("about")
 		self.prefs = PreferencesDialog(glade)
-		
-		self.addchooser = gtk.FileChooserDialog(_("Add files..."),
-												self.widget,
-												gtk.FILE_CHOOSER_ACTION_OPEN,
-												(gtk.STOCK_CANCEL, 
-													gtk.RESPONSE_CANCEL,
-													gtk.STOCK_OPEN,
-													gtk.RESPONSE_OK))
-		self.addchooser.set_select_multiple(True)
-		self.addchooser.set_local_only(not use_gnomevfs)
 
+		self.addchooser = CustomFileChooser()
 		self.addfolderchooser = gtk.FileChooserDialog(_("Add Folder..."),
 												self.widget,
 												gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER,
