@@ -1,6 +1,7 @@
 2006-06-05  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: YEEPEE!!! The bug plaging the gst0.10 port is GONE !!
+	  Merged custom filename patterns & cleanups from 0.8 branch.
 
 2006-03-29  Gautier Portet <kassoulet gmail com>
 
