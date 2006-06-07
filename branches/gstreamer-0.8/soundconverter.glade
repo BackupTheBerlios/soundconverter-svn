@@ -384,7 +384,7 @@
 	    <widget class="GtkProgressBar" id="progressbar">
 	      <property name="visible">True</property>
 	      <property name="orientation">GTK_PROGRESS_LEFT_TO_RIGHT</property>
-	      <property name="fraction">8.94069651647e-10</property>
+	      <property name="fraction">0</property>
 	      <property name="pulse_step">0.10000000149</property>
 	      <property name="ellipsize">PANGO_ELLIPSIZE_NONE</property>
 	    </widget>
@@ -463,8 +463,7 @@ Thanks to:
         Regis Floret
         Toni Fiz
         Seketeli Apelete
-        Cristiano Canguçu
-	Cristiano Canguçu
+ 	Cristiano Canguçu
 	Adolfo González Blázquez
 	Marc E.
 	Tobias Kral
