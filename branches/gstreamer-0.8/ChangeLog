@@ -1,3 +1,7 @@
+2006-06-13  Gautier Portet <kassoulet gmail com>
+
+	* soundconverter.py: Batch mode fixes.
+
 2006-06-05  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: Merged CustomFileChooser from 0.10 branch.

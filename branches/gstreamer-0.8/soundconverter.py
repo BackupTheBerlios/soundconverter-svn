@@ -400,6 +400,9 @@ class BackgroundTask:
 	Call the stop method if you want to stop the task before it finishes
 	normally."""
 
+	def __init__(self):
+		self.paused = False
+
 	def run(self):
 		"""Start running the task. Call setup()."""
 		try:
@@ -463,6 +466,7 @@ class TaskQueue(BackgroundTask):
 	tasks in order and start the next one when the previous finishes."""
 
 	def __init__(self):
+		BackgroundTask.__init__(self)
 		self.tasks = []
 		self.running = False
 		
@@ -538,6 +542,7 @@ class Pipeline(BackgroundTask):
 	"""A background task for running a GstPipeline."""
 
 	def __init__(self):
+		BackgroundTask.__init__(self)
 		self.pipeline = gst.Pipeline()
 		
 	def setup(self):
@@ -653,6 +658,9 @@ class Decoder(Pipeline):
 
 	def get_input_uri(self):
 		return self.sound_file.get_uri()
+
+	def get_filename(self):
+		return gnomevfs.unescape_string_for_display(self.sound_file.get_filename())
 
 	def get_size_in_bytes(self):
 		# gst.QUERY_SIZE doesn't work reliably until we have ran the
@@ -1949,8 +1957,8 @@ def cli_convert_main(input_files):
 	global error
 	error = ErrorPrinter()
 
-	output_type = get("cli-output-type")
-	output_suffix = get("cli-output-suffix")
+	output_type = get_option("cli-output-type")
+	output_suffix = get_option("cli-output-suffix")
 	
 	generator = TargetNameGenerator()
 	generator.set_target_suffix(output_suffix)
@@ -1965,10 +1973,10 @@ def cli_convert_main(input_files):
 	queue.setup()
 	while queue.do_work():
 		t = queue.get_current_task()
-		if not get("quiet"):
-			progress.show("%s: %.1f %%" % (t.get_input_uri()[-65:], 
+		if not get_option("quiet"):
+			progress.show("%s: %.1f %%" % (t.get_filename()[-65:], 
 										   t.get_progress()))
-	if not get("quiet"):
+	if not get_option("quiet"):
 		progress.clear()
 
 

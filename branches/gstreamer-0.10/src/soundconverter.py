@@ -46,7 +46,6 @@ import gnome
 import gnome.ui
 import gconf
 import gobject
-
 try:
 	# gnome.vfs is deprecated
 	import gnomevfs
@@ -427,6 +426,8 @@ class BackgroundTask:
 		"""Do some work by calling work(). Call finish() if work is done."""
 		try:
 			gtk.threads_enter()
+			#print "do_work:", self
+			#time.sleep(0.01)
 			if self.paused:
 				if not self.current_paused_time:
 					self.current_paused_time = time.time()
@@ -616,7 +617,8 @@ class Pipeline(BackgroundTask):
 		elif t == gst.MESSAGE_EOS:
 			self.eos = True
 		if message.type.value_nicks[1] == "tag":
-			self.found_tag(self, "", message.parse_tag())	
+			#self.found_tag(self, "", message.parse_tag())	
+			self.eos = True
 		return True
 
 	def play(self):
