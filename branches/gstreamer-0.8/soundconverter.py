@@ -416,6 +416,7 @@ class BackgroundTask:
 	
 	def do_work(self):
 		"""Do some work by calling work(). Call finish() if work is done."""
+		print "do_work", self, self.paused
 		try:
 			if self.paused:
 				return True
@@ -1922,14 +1923,14 @@ def cli_tags_main(input_files):
 	global error
 	error = ErrorPrinter()
 	for input_file in input_files:
-		if not get("quiet"):
+		if not get_option("quiet"):
 			print input_file.get_uri()
 		t = TagReader(input_file)
 		t.setup()
 		while t.do_work():
 			pass
 		t.finish()
-		if not get("quiet"):
+		if not get_option("quiet"):
 			keys = input_file.keys()
 			keys.sort()
 			for key in keys:
