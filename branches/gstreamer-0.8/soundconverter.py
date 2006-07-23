@@ -349,6 +349,7 @@ class TargetNameGenerator:
 					s += c
 			result = urllib.quote(s)
 
+
 		if self.folder is None:
 			folder = root
 			stop_here = True
@@ -416,7 +417,7 @@ class BackgroundTask:
 	
 	def do_work(self):
 		"""Do some work by calling work(). Call finish() if work is done."""
-		print "do_work", self, self.paused
+		#print "do_work", self, self.paused
 		try:
 			if self.paused:
 				return True
@@ -1276,7 +1277,8 @@ class PreferencesDialog:
 		if self.get_int("same-folder-as-input"):
 			tuple = urlparse.urlparse(sound_file.get_uri())
 			path = tuple[2]
-			generator.set_folder(os.path.dirname(path))
+			if "%(.inputname)s" not in self.get_basename_pattern():
+				generator.set_folder(os.path.dirname(path))
 		else:
 			path, filename = os.path.split(sound_file.get_filename())
 			path = ""
