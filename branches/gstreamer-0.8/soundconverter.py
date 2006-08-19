@@ -1647,6 +1647,7 @@ class CustomFileChooser:
 		self.fcw = xml.get_widget("filechooserwidget")
 		self.fcw.set_local_only(False)
 		self.fcw.set_select_multiple(True)
+		self.fcw.set_local_only(not use_gnomevfs)
 		
 		self.pattern = []
 		
