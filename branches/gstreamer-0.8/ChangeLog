@@ -1,3 +1,7 @@
+2006-08-30  Gautier Portet <kassoulet gmail com>
+
+	* soundconverter.py: Changed file encoding (thanks Florent & Lars).
+
 2006-07-23  Gautier Portet <kassoulet gmail com>
 
 	* soundconverter.py: Filename generation fixes (duplicate folders).

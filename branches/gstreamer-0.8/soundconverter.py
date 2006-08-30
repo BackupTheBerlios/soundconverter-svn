@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: latin-1 -*-
+# -*- coding: iso-8859-1 -*-
 #
 # SoundConverter - GNOME application for converting between audio formats. 
 # Copyright 2004 Lars Wirzenius
