@@ -20,7 +20,7 @@
 # USA
 
 NAME = "SoundConverter"
-VERSION = "0.8.88888888"
+VERSION = "0.8.8"
 GLADE = "soundconverter.glade"
 
 # Python standard stuff.
@@ -177,7 +177,19 @@ def vfs_encode_filename(filename):
 
 def file_encode_filename(filename):
 	return gnomevfs.get_local_path_from_uri(filename)
-	
+
+def unquote_filename(filename):
+
+	f= urllib.unquote(filename)
+	try:
+		# files are normaly in utf-8
+		f = unicode(f, "utf-8")
+	except UnicodeDecodeError:
+		# but sometimes they are badly encoded, this is a failback
+		f = unicode(f, "latin1", "replace")
+	return f
+
+
 use_gnomevfs = False
 
 if gst.element_factory_find("gnomevfssrc"):
@@ -798,7 +810,7 @@ class Converter(Decoder):
 				return
 				
 		sink = self.make_element( gstreamer_sink, "sink")
-		log( _("Writing to: '%s'") % urllib.unquote(self.output_filename) )
+		log( _("Writing to: '%s'") % unquote_filename(self.output_filename) )
 		sink.set_property("location", encode_filename(self.output_filename))
 		self.add(sink)
 	
@@ -966,29 +978,20 @@ class FileList:
 							% _("no tags")
 
 		params = {}
-		params["filename"] = markup_escape(urllib.unquote(sound_file.get_filename()))
+		f = unquote_filename(sound_file.get_filename())
+		f = markup_escape(f)
+
+		params["filename"] = f
 		for item in ("title", "artist", "album"):
 			params[item] = markup_escape(sound_file.get_tag(item))
 	
-		try:	
-			if sound_file.have_tags:
-				s = template_tags % params
+		if sound_file.have_tags:
+			s = template_tags % params
+		else:
+			if sound_file.tags_read:
+				s = template_notags % params
 			else:
-				if sound_file.tags_read:
-					s = template_notags % params
-				else:
-					s = template_loading % params
-		except UnicodeDecodeError:
-			s = ""
-			for c in markup_escape(urllib.unquote(sound_file.get_uri())):
-				if ord(c) < 127:
-					s += c
-				else:
-					s += '<span foreground="yellow" background="red"><b>?</b></span>'
-
-			error.show(_("Invalid character in filename!"), s)
-			sys.exit(1)
-				
+				s = template_loading % params
 		return s
 
 	def append_file(self, sound_file):
@@ -1006,7 +1009,7 @@ class FileList:
 		for key in ALL_COLUMNS:
 			fields[key] = _("unknown")
 		fields["META"] = sound_file
-		fields["filename"] = urllib.unquote(sound_file.get_filename())
+		fields["filename"] = unquote_filename(sound_file.get_filename())
 
 		self.model.set(sound_file.model, 0, self.format_cell(sound_file))
 		self.window.set_sensitive()
@@ -1290,7 +1293,7 @@ class PreferencesDialog:
 		generator.set_basename_pattern(self.get_basename_pattern())
 		if for_display:
 			generator.set_replace_messy_chars(False)
-			return urllib.unquote(generator.get_target_name(sound_file))
+			return unquote_filename(generator.get_target_name(sound_file))
 		else:
 			generator.set_replace_messy_chars(
 				self.get_int("replace-messy-chars"))
@@ -1524,7 +1527,7 @@ class ConverterQueue(TaskQueue):
 		output_filename = self.window.prefs.generate_filename(sound_file)
 		path = urlparse.urlparse(output_filename) [2]
 		
-		path = urllib.unquote(path)
+		path = unquote_filename(path)
 		
 		exists = True
 		try:

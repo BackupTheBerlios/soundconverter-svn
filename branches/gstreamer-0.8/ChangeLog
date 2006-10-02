@@ -1,6 +1,10 @@
+2006-10-02  Gautier Portet <kassoulet gmail com>
+
+	* soundconverter.py: Added support for broken filename encodings.
+
 2006-09-03  Gautier Portet <kassoulet gmail com>
 
-	* soundconverter.py: Fix quoting of tags when generating filenames.
+	* soundconverter.py: Fixed quoting of tags when generating filenames.
 
 2006-08-30  Gautier Portet <kassoulet gmail com>
 
