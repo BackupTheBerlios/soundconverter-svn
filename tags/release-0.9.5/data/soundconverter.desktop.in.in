@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+_Name=Sound Converter
+_GenericName=Audio Format Converter
+_Comment=Convert audio files into other formats
+Icon=soundconverter
+MimeType=
+Exec=soundconverter %f
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=GNOME;GTK;AudioVideo;
+
